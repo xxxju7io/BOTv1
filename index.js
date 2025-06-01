@@ -1,46 +1,44 @@
 const { Telegraf } = require('telegraf');
-const bot = new Telegraf('SEU_TOKEN_BOT_TELEGRAM');
+const axios = require('axios');
+
+const bot = new Telegraf('7876916554:AAG1cvnHL6rVEM9Uph08RtlWVy1ZGsFwQxU'); // Substitua pelo seu token do Bot
 
 // Função para criar botões em coluna
 function criarBotoesColuna(textos, callbacks) {
     const botoes = [];
-
     for (let i = 0; i < textos.length; i++) {
         const botao = [{ text: textos[i], callback_data: callbacks[i] }];
         botoes.push(botao);
     }
-
     return botoes;
 }
 
-// Função para enviar a mensagem de boas-vindas
+function isPrivado(ctx) {
+    return ctx.chat.type === 'private';
+}
+
 function enviarMensagemBoasVindas(ctx, tipo) {
     const nome = tipo === 'enviar' ? ctx.message.from.first_name : ctx.callbackQuery.from.first_name;
-    const tipoCtx = tipo === 'enviar' ? ctx.replyWithHTML.bind(ctx) : ctx.editMessageText.bind(ctx);
+    const tipoCtx = tipo === 'enviar' ? ctx.replyWithMarkdown.bind(ctx) : ctx.editMessageText.bind(ctx);
 
     const textosBotoes = ['FUNCIONALIDADES', 'SUAS INFORMAÇÕES', 'DESENVOLVEDOR'];
     const callbacksBotoes = ['funcoes', 'perfil', 'desenvolvedor'];
 
-    tipoCtx(`🌟 Olá, *${nome}*! \nBem-vindo! Explore todas as minhas funcionalidades clicando nas opções abaixo. 👇`,
-        {
-            reply_markup: {
-                inline_keyboard: criarBotoesColuna(textosBotoes, callbacksBotoes)
-            },
-            parse_mode: 'Markdown'
+    tipoCtx(`🌟 Olá, *${nome}*! \nBem-vindo! Explore todas as minhas funcionalidades clicando nas opções abaixo. 👇`, {
+        reply_markup: {
+            inline_keyboard: criarBotoesColuna(textosBotoes, callbacksBotoes)
         }
-    );
+    });
 }
-
-const axios = require('axios');
 
 function limpar(texto, tipo) {
     const limparRegex = /\d/g;
+    const entrada = texto.split(`/${tipo} `).join('');
+    const numeros = entrada.match(limparRegex);
 
-    if (tipo === 'cep' || tipo === 'cpf' || tipo === 'cnpj' || tipo === 'placa' || tipo === 'bin') {
-        return texto.split(`/${tipo} `).join('').match(limparRegex).join('');
-    } else if (tipo === 'ip') {
-        return texto.split(`/${tipo} `).join('');
-    }
+    if (!numeros) return null;
+
+    return numeros.join('');
 }
 
 function formatarData(data) {
@@ -50,144 +48,131 @@ function formatarData(data) {
 }
 
 function consultaCep(cep, ctx) {
-    const cepLimpo = limpar(cep, 'cep');
+    const cepLimpo = limpar(cep, 'botcep');
+    if (!cepLimpo) return ctx.replyWithMarkdown('🚫 CEP inválido!');
 
     axios.get(`https://viacep.com.br/ws/${cepLimpo}/json`).then((res) => {
         const info = res.data;
         const mensagem = `🔎 *Consulta de CEP*\n\n*• CEP:* \`${info.cep}\`\n*• Logradouro:* \`${info.logradouro}\`\n*• Complemento:* \`${info.complemento}\`\n*• Bairro:* \`${info.bairro}\`\n*• Cidade:* \`${info.localidade}\`\n*• Estado:* \`${info.uf}\``;
-
         ctx.replyWithMarkdown(mensagem, {
             reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🗑 Apagar mensagem', callback_data: 'apagar' }]
-                ]
+                inline_keyboard: [[{ text: '🗑 Apagar mensagem', callback_data: 'apagar' }]]
             }
         });
-    }).catch(() => {
-        ctx.replyWithMarkdown('🚫 CEP inválido ou inexistente!');
-    });
+    }).catch(() => ctx.replyWithMarkdown('🚫 CEP inválido ou inexistente!'));
 }
 
 function consultaCnpj(cnpj, ctx) {
-    const cnpjLimpo = limpar(cnpj, 'cnpj');
+    const cnpjLimpo = limpar(cnpj, 'botcnpj');
+    if (!cnpjLimpo) return ctx.replyWithMarkdown('🚫 CNPJ inválido!');
 
     axios.get(`https://www.receitaws.com.br/v1/cnpj/${cnpjLimpo}`).then((res) => {
-        const cpj = res.data;
-        const mensagem = `🔎 *Consulta de CNPJ*\n\n*• Nome:* \`${cpj.nome}\`\n*• Nome fantasia:* \`${cpj.fantasia}\`\n*• Estado:* \`${cpj.uf}\`\n*• Telefone:* \`${cpj.telefone}\`\n*• Email:* \`${cpj.email}\`\n*• Data de abertura:* \`${formatarData(cpj.abertura)}\`\n*• Capital:* \`${cpj.capital_social}\`\n*• Situação:* \`${cpj.situacao}\`\n*• Município:* \`${cpj.municipio}\`\n*• Bairro:* \`${cpj.bairro}\`\n*• Rua:* \`${cpj.logradouro}\`\n*• Cep:* \`${cpj.cep}\`\n*• Porte:* \`${cpj.porte}\`\n*• Atividade principal:* \`${cpj.atividade_principal[0].text}\``;
-
+        const c = res.data;
+        const mensagem = `🔎 *Consulta de CNPJ*\n\n*• Nome:* \`${c.nome}\`\n*• Fantasia:* \`${c.fantasia}\`\n*• Estado:* \`${c.uf}\`\n*• Telefone:* \`${c.telefone}\`\n*• Email:* \`${c.email}\`\n*• Abertura:* \`${formatarData(c.abertura)}\`\n*• Capital:* \`${c.capital_social}\`\n*• Situação:* \`${c.situacao}\`\n*• Cidade:* \`${c.municipio}\`\n*• Bairro:* \`${c.bairro}\`\n*• Rua:* \`${c.logradouro}\`\n*• CEP:* \`${c.cep}\`\n*• Porte:* \`${c.porte}\`\n*• Atividade:* \`${c.atividade_principal[0].text}\``;
         ctx.replyWithMarkdown(mensagem, {
             reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🗑 Apagar mensagem', callback_data: 'apagar' }]
-                ]
+                inline_keyboard: [[{ text: '🗑 Apagar mensagem', callback_data: 'apagar' }]]
             }
         });
-    }).catch(() => {
-        ctx.replyWithMarkdown('🚫 CNPJ inválido ou inexistente!');
-    });
+    }).catch(() => ctx.replyWithMarkdown('🚫 CNPJ inválido ou inexistente!'));
 }
 
 function consultaIp(ip, ctx) {
-    const ipLimpo = limpar(ip, 'ip');
+    const ipLimpo = limpar(ip, 'botip');
+    if (!ipLimpo) return ctx.replyWithMarkdown('🚫 IP inválido!');
 
     axios.get(`http://ip-api.com/json/${ipLimpo}?lang=pt-BR`).then((res) => {
-        const pegar = res.data;
-        const mensagem = `🔎 *Consulta de IP*\n\n*• País:* \`${pegar.country}\`\n*• Cod país:* \`${pegar.countryCode}\`\n*• Estado:* \`${pegar.regionName}\`\n*• Cidade:* \`${pegar.city}\`\n*• Latitude:* \`${pegar.lat}\`\n*• Longitude:* \`${pegar.lon}\``;
+        const p = res.data;
+        const mensagem = `🔎 *Consulta de IP*\n\n*• País:* \`${p.country}\`\n*• Estado:* \`${p.regionName}\`\n*• Cidade:* \`${p.city}\`\n*• Latitude:* \`${p.lat}\`\n*• Longitude:* \`${p.lon}\``;
+        ctx.replyWithMarkdown(mensagem, {
+            reply_markup: {
+                inline_keyboard: [[{ text: '🗑 Apagar mensagem', callback_data: 'apagar' }]]
+            }
+        });
+    }).catch(() => ctx.replyWithMarkdown('🚫 IP inválido ou inexistente!'));
+}
+
+function consultaBin(bin, ctx) {
+    const binLimpo = limpar(bin, 'botbin');
+    if (!binLimpo) return ctx.replyWithMarkdown('🚫 BIN inválido!');
+
+    axios.get(`https://lookup.binlist.net/${binLimpo}`).then((res) => {
+        const d = res.data;
+        const mensagem = `💳 *Consulta BIN*\n\n*• Número:* \`${binLimpo}\`\n*• Esquema:* \`${d.scheme}\`\n*• Tipo:* \`${d.type}\`\n*• Marca:* \`${d.brand}\`\n*• Banco:* \`${d.bank?.name || 'N/A'}\`\n*• País:* \`${d.country?.name || 'N/A'}\``;
+        ctx.replyWithMarkdown(mensagem, {
+            reply_markup: {
+                inline_keyboard: [[{ text: '🗑 Apagar mensagem', callback_data: 'apagar' }]]
+            }
+        });
+    }).catch(() => ctx.replyWithMarkdown('🚫 BIN inválido ou inexistente!'));
+}
+
+// Consulta de telefone via API numverify (exemplo)
+async function consultaTelefone(telefone, ctx) {
+    const telefoneLimpo = limpar(telefone, 'bottelefone');
+    if (!telefoneLimpo) return ctx.replyWithMarkdown('🚫 Número de telefone inválido!');
+
+    const apiKey = '7fbd4f7214fc124cabd57c9730e5f131'; // Cadastre-se em numverify.com para obter uma grátis
+    const url = `http://apilayer.net/api/validate?access_key=${apiKey}&number=${telefoneLimpo}&country_code=BR&format=1`;
+
+    try {
+        const res = await axios.get(url);
+        const data = res.data;
+        if (!data.valid) return ctx.replyWithMarkdown('🚫 Número inválido ou não encontrado!');
+
+        const mensagem = `📞 *Consulta de Telefone*\n\n*• Número:* \`${telefoneLimpo}\`\n*• País:* \`${data.country_name}\`\n*• Localização:* \`${data.location}\`\n*• Linha:* \`${data.line_type}\``;
 
         ctx.replyWithMarkdown(mensagem, {
             reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🗑 Apagar mensagem', callback_data: 'apagar' }]
-                ]
+                inline_keyboard: [[{ text: '🗑 Apagar mensagem', callback_data: 'apagar' }]]
             }
         });
-    }).catch(() => {
-        ctx.replyWithMarkdown('🚫 IP inválido ou inexistente!');
-    });
+    } catch (error) {
+        ctx.replyWithMarkdown('🚫 Erro ao consultar telefone, tente novamente mais tarde.');
+    }
 }
 
-// Comando de início
 bot.start(ctx => {
-    enviarMensagemBoasVindas(ctx, 'enviar');
+    if (isPrivado(ctx)) {
+        enviarMensagemBoasVindas(ctx, 'enviar');
+    } else {
+        ctx.reply('🤖 Bot ativado neste grupo! Use comandos iniciados com /bot para evitar conflitos.');
+    }
 });
 
-// Ação do menu
-bot.action('menu', ctx => {
-    enviarMensagemBoasVindas(ctx, 'editar');
-});
+bot.hears('/botmenu', ctx => enviarMensagemBoasVindas(ctx, 'enviar'));
+bot.action('menu', ctx => enviarMensagemBoasVindas(ctx, 'editar'));
+bot.action('apagar', ctx => ctx.deleteMessage());
 
-// Ação do menu
-bot.hears('/menu', ctx => {
-    enviarMensagemBoasVindas(ctx, 'enviar');
-});
-
-bot.action('apagar', (ctx) => {
-    ctx.deleteMessage()
-})
-
-// Ação de funções
 bot.action('funcoes', ctx => {
-
     const textosBotoes = ['RETORNAR'];
     const callbacksBotoes = ['menu'];
-
-    ctx.editMessageText(`🔍 *OLÁ! MENU DE FUNÇÕES:* 🌟\n━━━━━━━━━━━━━━━━━━━━━\n*CONSULTA DE CEP:*\n /cep [CEP desejado] (Exemplo: /cep 60025-130)\n\n*CONSULTA DE CNPJ:*\n /cnpj [CNPJ desejado] (Exemplo: /cnpj 06.990.590/0001-23)\n\n*CONSULTA DE IP:*\n /ip [Endereço IP desejado] (Exemplo: /ip 8.8.8.8)\n━━━━━━━━━━━━━━━━━━━━━\n*Agora é só utilizar!* 🚀`,
-        {
-            reply_markup: { inline_keyboard: criarBotoesColuna(textosBotoes, callbacksBotoes) },
-            parse_mode: 'Markdown'
-        }
-    );
+    ctx.editMessageText(`🔍 *MENU DE FUNÇÕES:*\n━━━━━━━━━━━━━━━━━━━━━\n*• /botcep [cep]*\n*• /botcnpj [cnpj]*\n*• /botip [ip]*\n*• /botbin [bin]*\n*• /bottelefone [número]*\n━━━━━━━━━━━━━━━━━━━━━\nUse os comandos acima conforme necessário.`, {
+        reply_markup: { inline_keyboard: criarBotoesColuna(textosBotoes, callbacksBotoes) }
+    });
 });
 
 bot.action('perfil', ctx => {
+    const { id, first_name, username } = ctx.callbackQuery.from;
+    const nomeUsuario = username ? `@${username}` : 'Não definido';
+    ctx.editMessageText(`*Suas informações do Telegram*\n━━━━━━━━━━━━━━━━━━━━━\n*ID:* ${id}\n*Nome:* ${first_name}\n*Usuário:* ${nomeUsuario}\n━━━━━━━━━━━━━━━━━━━━━`, {
+        reply_markup: { inline_keyboard: criarBotoesColuna(['RETORNAR'], ['menu']) }
+    });
+});
 
-    const id = ctx.callbackQuery.from.id
-    const nome = ctx.callbackQuery.from.first_name
-    const usuario = ctx.callbackQuery.from.username
-    var nomeUsuario
-
-    if (usuario == undefined) {
-        nomeUsuario = 'Não definido'
-    } else {
-        nomeUsuario = `@${usuario}`
-    }
-
-    console.log(usuario)
-
-    const textosBotoes = ['RETORNAR'];
-    const callbacksBotoes = ['menu'];
-
-    ctx.editMessageText(`*Suas informações do Telegram*\n━━━━━━━━━━━━━━━━━━━━━\n*ID do Telegram:*  ${id}\n*Seu nome:* ${nome}\n*Nome de usuário:* ${nomeUsuario}\n━━━━━━━━━━━━━━━━━━━━━\nClique na opção abaixo para retornar ao menu.`,
-        {
-            reply_markup: { inline_keyboard: criarBotoesColuna(textosBotoes, callbacksBotoes) },
-            parse_mode: 'Markdown'
-        });
-})
 bot.action('desenvolvedor', ctx => {
-    const textosBotoes = ['RETORNAR'];
-    const callbacksBotoes = ['menu'];
+    ctx.editMessageText(`*Desenvolvedor*\n━━━━━━━━━━━━━━━━━━━━━\nJ074Gostoso\nTelegram: @jo74\nInstagram: [@craftcodeweb](https://instagram.com/julin_chp)\n━━━━━━━━━━━━━━━━━━━━━`, {
+        reply_markup: { inline_keyboard: criarBotoesColuna(['RETORNAR'], ['menu']) },
+        parse_mode: 'Markdown'
+    });
+});
 
-    ctx.editMessageText(`*Informações do Devenvolvedor*\n━━━━━━━━━━━━━━━━━━━━━\nNome: David Leite\nTelegram: @davidsdy\nSite: [Acessar site](https://craftcodeweb.com)\nInstagram: [Acessar Instagram](https://www.instagram.com/craftcodeweb/)\nBot criado em: 05 de Janeiro de 2024\n━━━━━━━━━━━━━━━━━━━━━\nClique na opção abaixo para retornar ao menu.`,
-        {
-            reply_markup: { inline_keyboard: criarBotoesColuna(textosBotoes, callbacksBotoes) },
-            parse_mode: 'Markdown'
-        }
-    );
-})
+// Comandos prefixados para evitar conflitos com outros bots
+bot.hears(/^\/botcep (.+)/, ctx => consultaCep(ctx.message.text, ctx));
+bot.hears(/^\/botcnpj (.+)/, ctx => consultaCnpj(ctx.message.text, ctx));
+bot.hears(/^\/botip (.+)/, ctx => consultaIp(ctx.message.text, ctx));
+bot.hears(/^\/botbin (.+)/, ctx => consultaBin(ctx.message.text, ctx));
+bot.hears(/^\/bottelefone (.+)/, ctx => consultaTelefone(ctx.message.text, ctx));
 
-bot.on('message', async (ctx) => {
-
-    const msg = ctx.message.text
-
-    if (msg.includes('/cep') == true) {
-        consultaCep(msg, ctx)
-    }
-    else if (msg.includes('/ip') == true) {
-        consultaIp(msg, ctx)
-    }
-    else if (msg.includes('/cnpj') == true) {
-        consultaCnpj(msg, ctx)
-    }
-})
-
-bot.startPolling();
+bot.launch();
+console.log('✅ Bot iniciado com sucesso!');
