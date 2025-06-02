@@ -5,7 +5,7 @@ const { SocksProxyAgent } = require('socks-proxy-agent');
 // Configurações
 const torProxy = 'socks5h://127.0.0.1:9050';
 const agent = new SocksProxyAgent(torProxy);
-const bot = new Telegraf('7876916554:AAG1cvnHL6rVEM9Uph08RtlWVy1ZGsFwQxU');
+const bot = new Telegraf('TOKE_DO_BOT_AQUI');
 
 // Delay entre comandos (mantido para evitar flooding da API do Telegram)
 bot.use((ctx, next) => setTimeout(() => next(), 2000));
@@ -181,8 +181,8 @@ bot.command('cpf', async (ctx) => {
         return ctx.reply('⚠️ Por favor, forneça um CPF válido (apenas números, 11 dígitos).', criarMenuVoltar());
     }
 
-    const API_TOKEN = '1090'; // Use seu token de API real aqui
-    const apiUrl = `https://searchapi.dnnl.live/consulta?token_api=${API_TOKEN}&cpf=${cpf}`;
+    const API_TOKEN = 'TOKEN_DA_API'; // Use seu token de API real aqui
+    const apiUrl = `API_DE_CPF`; // Use sua API de cpf aqui
 
     try {
         const { data } = await axios.get(apiUrl, {
